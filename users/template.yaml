@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: 'AWS::Serverless-2016-10-31'
 
-
 Parameters:
   Environment:
     Type: String
@@ -21,7 +20,6 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
     Description: EventBridge Event Bus Name
 
-
 Globals:
   Function:
     Runtime: python3.9
@@ -38,7 +36,6 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
     Layers:
       - !Sub "arn:aws:lambda:${AWS::Region}:580247275435:layer:LambdaInsightsExtension-Arm64:1"
-
 
 Resources:
   #############
@@ -70,6 +67,51 @@ Resources:
       GroupName: admin
       UserPoolId: !Ref UserPool
 
+  HostGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: host
+      UserPoolId: !Ref UserPool
+
+  GuestGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: guest
+      UserPoolId: !Ref UserPool
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+
+
+  #############
+  # DYNAMODB TABLE #
+  #############
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Users
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
   #############
   # FUNCTIONS #
   #############
@@ -95,9 +137,465 @@ Resources:
               Condition:
                 StringEquals:
                   events:source: "ecommerce.users"
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !GetAtt UsersTable.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UsersTable      
 
   SignUpLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${SignUpFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  #############
+  # API Gateway #
+  #############
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: UserApi
+      StageName: !Ref Environment
+      DefinitionBody:
+        openapi: 3.0.0
+        info:
+          title: "User API"
+          version: "1.0"
+        paths:
+          /users/create:
+            post:
+              summary: Create a new user.
+              operationId: createUser
+              security:
+                - ApiKeyAuth: []
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        userType:
+                          type: string
+                        password:
+                            type: string
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          userId:
+                            type: string
+                          email:
+                            type: string
+                          userType:
+                            type: string
+                          
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                  description: Internal Server Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+          /users/login:
+            post:
+              summary: User login
+              operationId: loginUser
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        email:
+                          type: string
+                        password:
+                          type: string
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                  description: Internal Server Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+          /users/deactivate/{userId}:
+            delete:
+              summary: Deactivate a user by user ID
+              operationId: deactivateUser
+              security:
+                - CognitoAuth: []
+              parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          message:
+                            type: string
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                  description: Internal Server Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+          /users/get/{userId}:
+            get:
+              summary: Get user information by user ID
+              operationId: getUser
+              security:
+                - CognitoAuth: []
+              parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          userId:
+                            type: string
+                          email:
+                            type: string
+                          profile:
+                            type: object
+                          userType:
+                            type: string
+                          personalInformation:
+                            type: object
+                          financeInformation:
+                            type: object
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                '500':
+                  description: Internal Server Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+          /users/update/{userId}:
+            put:
+              summary: Update user information by user ID
+              operationId: updateUser
+              security:
+                - CognitoAuth: []
+              parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        profile:
+                          type: object
+                        personalInformation:
+                          type: object
+                        financeInformation:
+                          type: object
+              responses:
+                '200':
+                  description: Successful response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          userId:
+                            type: string
+                          email:
+                            type: string
+                          profile:
+                            type: object
+                          personalInformation:
+                            type: object
+                          financeInformation:
+                            type: object
+                '400':
+                  description: Bad Request
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                      examples:
+                        badRequest:
+                          summary: Bad Request Example
+                          value:
+                            message: "Invalid user ID or data"
+                            code: 400
+                            details: "User ID provided is not valid or the data is malformed."
+                '500':
+                  description: Internal Server Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+                      examples:
+                        serverError:
+                          summary: Internal Server Error Example
+                          value:
+                            message: "Internal server error"
+                            code: 500
+                            details: "An unexpected error occurred while processing the request."        
+        components:
+          securitySchemes:
+            CognitoAuth:
+              type: apiKey
+              in: header
+              name: Authorization
+          schemas:
+            ErrorResponse:
+              type: object
+              properties:
+                message:
+                  type: string
+                code:
+                  type: integer
+                details:
+                  type: string
+  #############
+  # API Key #
+  #############
+  ApiGatewayApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties: 
+      Enabled: true
+      Name: !Sub "${Environment}-user-api-key"
+      StageKeys:
+        - RestApiId: !Ref ApiGateway
+          StageName: !Ref Environment
+
+  #############
+  # Lambda Function for User Create API #
+  #############
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/create_user/
+      Handler: main.handler
+      Policies:
+        - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminAddUserToGroup
+              - cognito-idp:AdminSetUserPassword
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+      Events:
+        CreateUserApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /users/create
+            Method: post
+  CreateUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateUserFunction}"
+      RetentionInDays: !Ref RetentionInDays
+      
+  #############
+  # Lambda Function for User Login API #
+  #############
+  UserLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/user_login/
+      Handler: main.handler
+      Runtime: python3.9
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminInitiateAuth
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          CLIENT_ID: !Ref UserPoolClient
+      Events:
+        UserLoginApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /users/login
+            Method: post
+  UserLoginFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UserLoginFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+
+  #############
+  # Lambda Function for User Deactivation #
+  #############
+  UserDeactivateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/user_deactivate/
+      Handler: main.handler
+      Runtime: python3.9
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminDisableUser
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+      Events:
+        UserDeactivateApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /users/deactivate/{userId}
+            Method: delete
+  UserDeactivateFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UserDeactivateFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  #############
+  # Lambda Function for Get User Info #
+  #############
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_user/
+      Handler: main.handler
+      Runtime: python3.9
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UsersTable
+      Events:
+        GetUserApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /users/get/{userId}
+            Method: get
+  GetUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetUserFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  #############
+  # Lambda Function for Update User Info #
+  #############
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/update_user/
+      Handler: main.handler
+      Runtime: python3.9
+      Timeout: 30
+      Tracing: Active
+      Policies:
+        - arn:aws:iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt UsersTable.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref UsersTable
+      Events:
+        UpdateUserApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /users/update/{userId}
+            Method: put
+  UpdateUserFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UpdateUserFunction}"
       RetentionInDays: !Ref RetentionInDays
