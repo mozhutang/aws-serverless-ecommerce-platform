@@ -86,6 +86,33 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${CreateListingFunction}"
       RetentionInDays: !Ref RetentionInDays
 
+  GetListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt ListingsTable.Arn
+      Events:
+        GetListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/get/{listingId}
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+
   ApiGateway:
     Type: AWS::Serverless::Api
     Properties:
