@@ -78,49 +78,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Listing'
-              examples:
-                success:
-                  summary: A successful response
-                  value:
-                    listingId: "LISTING#123"
-                    listingType: "STAY"
-                    name: "Cozy 2 Bedroom in Central Park"
-                    address: "123 Park Ave, New York, NY"
-                    city: "New York"
-                    photoAddressList: ["http://example.com/photo1.jpg", "http://example.com/photo2.jpg"]
-                    category: "Luxury"
-                    price: 350
-                    calendar:
-                      - date: "2023-01-01"
-                        available: true
-                        price: 375
-                      - date: "2023-01-02"
-                        available: false
-                        price: 375
-                    hostInformation: "HOST#123"
         '400':
           description: Bad Request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                badRequest:
-                  summary: Bad Request Example
-                  value:
-                    message: "Invalid listing data"
-                    code: 400
-                    details: "The provided listing data is invalid."
         '500':
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                serverError:
-                  summary: Internal Server Error Example
-                  value:
-                    message: "Internal server error"
-                    code: 500
-                    details: "An unexpected error occurred while processing the request."
+ /listings/get/{listingId}:
+    get:
+      summary: Retrieve listing information by listing ID.
+      operationId: getListingById
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
