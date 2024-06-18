@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  LogLevel:
+    Type: String
+    Default: INFO
+  RetentionInDays:
+    Type: Number
+    Default: 30
+    Description: CloudWatch Logs retention period for Lambda functions
+
+Globals:
+  Function:
+    Runtime: python3.9
+    Timeout: 30
+    Tracing: Active
+    Environment:
+      Variables:
+        LOG_LEVEL: !Ref LogLevel
+        ENVIRONMENT: !Ref Environment
+
+Resources:
+  #############
+  # DynamoDB Table #
+  #############
+  ListingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Listings
+      AttributeDefinitions:
+        - AttributeName: listingId
+          AttributeType: S
+        - AttributeName: hostId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: listingId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: hostId-index
+          KeySchema:
+            - AttributeName: hostId
+              KeyType: HASH
+            - AttributeName: listingId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: true
+
