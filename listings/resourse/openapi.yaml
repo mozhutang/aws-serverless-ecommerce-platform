@@ -119,3 +119,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+ /listings:
+    get:
+      summary: List listings with pagination and optional filters.
+      operationId: listListings
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 10
+        - name: lastEvaluatedKey
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: hostId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sortOrder
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            example: asc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Listing'
+                  lastEvaluatedKey:
+                    type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Internal Server Error Example
+                  value:
+                    message: "Internal server error"
+                    code: 500
+                    details: "An unexpected error occurred while processing the request."
