@@ -23,11 +23,9 @@ Globals:
       Variables:
         LOG_LEVEL: !Ref LogLevel
         ENVIRONMENT: !Ref Environment
+        TABLE_NAME: Listings
 
 Resources:
-  #############
-  # DynamoDB Table #
-  #############
   ListingsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -55,3 +53,45 @@ Resources:
       SSESpecification:
         SSEEnabled: true
 
+  CreateListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/create_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt ListingsTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListGroupsForUser
+              Resource: "*"
+      Events:
+        CreateListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/create
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  CreateListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./resources/openapi.yaml
