@@ -173,6 +173,32 @@ Resources:
       RetentionInDays: !Ref RetentionInDays
 
 
+  SearchListingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/search_listings/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt ListingsTable.Arn
+      Events:
+        SearchListingsApi:
+          Type: Api
+          Properties:
+            Path: /listings/search
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  SearchListingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SearchListingsFunction}"
+      RetentionInDays: !Ref RetentionInDays
+      
   ApiGateway:
     Type: AWS::Serverless::Api
     Properties:
