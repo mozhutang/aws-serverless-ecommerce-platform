@@ -172,6 +172,38 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${UpdateListingFunction}"
       RetentionInDays: !Ref RetentionInDays
 
+  DeleteListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/delete_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+              Resource: !GetAtt ListingsTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource: "*"
+      Events:
+        DeleteListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/delete/{listingId}
+            Method: delete
+            RestApiId: !Ref ApiGateway
+
+  DeleteListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DeleteListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
 
   ApiGateway:
     Type: AWS::Serverless::Api
