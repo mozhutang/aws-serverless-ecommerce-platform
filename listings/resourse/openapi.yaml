@@ -90,7 +90,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
- /listings/get/{listingId}:
+  /listings/get/{listingId}:
     get:
       summary: Retrieve listing information by listing ID.
       operationId: getListingById
@@ -119,7 +119,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
- /listings:
+  /listings:
     get:
       summary: List listings with pagination and optional filters.
       operationId: listListings
@@ -166,6 +166,56 @@ paths:
                       $ref: '#/components/schemas/Listing'
                   lastEvaluatedKey:
                     type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Internal Server Error Example
+                  value:
+                    message: "Internal server error"
+                    code: 500
+                    details: "An unexpected error occurred while processing the request."
+  /listings/update/{listingId}:
+    put:
+      summary: Update listing information by listing ID.
+      operationId: updateListing
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Listing'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badRequest:
+                  summary: Bad Request Example
+                  value:
+                    message: "Invalid listing data"
+                    code: 400
+                    details: "The provided listing data is invalid."
         '500':
           description: Internal Server Error
           content:
