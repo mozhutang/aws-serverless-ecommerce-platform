@@ -346,12 +346,3 @@ paths:
                     message: "Internal server error"
                     code: 500
                     details: "An unexpected error occurred while processing the request."
-
-
-
-
-
-
-
-
-
