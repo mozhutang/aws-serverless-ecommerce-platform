@@ -1,0 +1,242 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  LogLevel:
+    Type: String
+    Default: INFO
+  RetentionInDays:
+    Type: Number
+    Default: 30
+    Description: CloudWatch Logs retention period for Lambda functions
+
+Globals:
+  Function:
+    Runtime: python3.9
+    Timeout: 30
+    Tracing: Active
+    Environment:
+      Variables:
+        LOG_LEVEL: !Ref LogLevel
+        ENVIRONMENT: !Ref Environment
+        TABLE_NAME: Listings
+
+Resources:
+  ListingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Listings
+      AttributeDefinitions:
+        - AttributeName: listingId
+          AttributeType: S
+        - AttributeName: hostId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: listingId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: hostId-index
+          KeySchema:
+            - AttributeName: hostId
+              KeyType: HASH
+            - AttributeName: listingId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: true
+
+  CreateListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/create_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt ListingsTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListGroupsForUser
+              Resource: "*"
+      Events:
+        CreateListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/create
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  CreateListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  GetListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt ListingsTable.Arn
+      Events:
+        GetListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/get/{listingId}
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  ListListingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/list_listings/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource: !GetAtt ListingsTable.Arn
+      Events:
+        ListListingsApi:
+          Type: Api
+          Properties:
+            Path: /listings/list
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  ListListingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ListListingsFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  UpdateListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/update_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+                - dynamodb:GetItem
+              Resource: !GetAtt ListingsTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource: "*"
+      Events:
+        UpdateListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/update/{listingId}
+            Method: put
+            RestApiId: !Ref ApiGateway
+
+  UpdateListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${UpdateListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  DeleteListingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/delete_listing/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+              Resource: !GetAtt ListingsTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource: "*"
+      Events:
+        DeleteListingApi:
+          Type: Api
+          Properties:
+            Path: /listings/delete/{listingId}
+            Method: delete
+            RestApiId: !Ref ApiGateway
+
+  DeleteListingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${DeleteListingFunction}"
+      RetentionInDays: !Ref RetentionInDays
+
+  SearchListingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/search_listings/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt ListingsTable.Arn
+      Events:
+        SearchListingsApi:
+          Type: Api
+          Properties:
+            Path: /listings/search
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  SearchListingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SearchListingsFunction}"
+      RetentionInDays: !Ref RetentionInDays
+      
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./resources/openapi.yaml
