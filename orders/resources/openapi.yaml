@@ -123,3 +123,35 @@ paths:
                     message: "Internal server error"
                     code: 500
                     details: "An unexpected error occurred while processing the request."
+
+  /orders/get/{orderId}:
+    get:
+      summary: Retrieve order information by order ID.
+      operationId: getOrderById
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
