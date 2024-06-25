@@ -1,2 +1,0 @@
-aws-lambda-powertools==1.16.1
-boto3
