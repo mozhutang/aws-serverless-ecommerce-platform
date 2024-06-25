@@ -73,3 +73,29 @@ Resources:
           Name: AWS::Include
           Parameters:
             Location: ./resources/openapi.yaml
+
+  CreateOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/create_order/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt OrdersTable.Arn
+      Events:
+        CreateOrderApi:
+          Type: Api
+          Properties:
+            Path: /orders/create
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  CreateOrderFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateOrderFunction}"
+      RetentionInDays: !Ref RetentionInDays

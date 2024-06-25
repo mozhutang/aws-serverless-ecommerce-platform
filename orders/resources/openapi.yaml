@@ -1,0 +1,125 @@
+openapi: 3.0.0
+info:
+  title: Orders API
+  version: 1.0.0
+  description: API for managing orders
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+
+  schemas:
+    Order:
+      type: object
+      properties:
+        orderId:
+          type: string
+        userId:
+          type: string
+        orderType:
+          type: string
+        detailId:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        date:
+          type: string
+        time:
+          type: string
+        total:
+          type: number
+          format: float
+        additionalFees:
+          $ref: '#/components/schemas/AdditionalFees'
+        hostId:
+          type: string
+    AdditionalFees:
+      type: object
+      properties:
+        cleaningFee:
+          type: number
+          format: float
+        serviceFee:
+          type: number
+          format: float
+        taxes:
+          type: number
+          format: float
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: integer
+        details:
+          type: string
+
+paths:
+  /orders/create:
+    post:
+      summary: Create a new order.
+      operationId: createOrder
+      security:
+        - CognitoAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+              examples:
+                success:
+                  summary: A successful response
+                  value:
+                    orderId: "ORDER#123"
+                    userId: "USER#123"
+                    orderType: "Stay"
+                    detailId: "LISTING#456"
+                    startDate: "2023-01-01"
+                    endDate: "2023-01-10"
+                    date: "2023-01-01"
+                    time: "15:00"
+                    total: 1500
+                    additionalFees:
+                      cleaningFee: 100
+                      serviceFee: 50
+                      taxes: 150
+                    hostId: "HOST#123"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badRequest:
+                  summary: Bad Request Example
+                  value:
+                    message: "Invalid order data"
+                    code: 400
+                    details: "The provided order data is invalid."
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Internal Server Error Example
+                  value:
+                    message: "Internal server error"
+                    code: 500
+                    details: "An unexpected error occurred while processing the request."
