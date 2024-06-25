@@ -99,3 +99,35 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${CreateOrderFunction}"
       RetentionInDays: !Ref RetentionInDays
+
+  GetOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get_order/
+      Handler: main.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt OrdersTable.Arn
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+              Resource: "*"
+      Events:
+        GetOrderApi:
+          Type: Api
+          Properties:
+            Path: /orders/get/{orderId}
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetOrderFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${GetOrderFunction}"
+      RetentionInDays: !Ref RetentionInDays
