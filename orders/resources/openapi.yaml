@@ -155,3 +155,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/list:
+    get:
+      summary: List orders by user ID or listing ID.
+      operationId: listOrders
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: listingId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+              examples:
+                success:
+                  summary: A successful response
+                  value:
+                    - orderId: "ORDER#123"
+                      userId: "USER#123"
+                      orderType: "Stay"
+                      detailId: "LISTING#456"
+                      startDate: "2023-01-01"
+                      endDate: "2023-01-10"
+                      date: "2023-01-01"
+                      time: "15:00"
+                      total: 1500
+                      additionalFees:
+                        cleaningFee: 100
+                        serviceFee: 50
+                        taxes: 150
+                      hostId: "HOST#123"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badRequest:
+                  summary: Bad Request Example
+                  value:
+                    message: "Invalid parameters"
+                    code: 400
+                    details: "The provided parameters are invalid."
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Internal Server Error Example
+                  value:
+                    message: "Internal server error"
+                    code: 500
+                    details: "An unexpected error occurred while processing the request."
