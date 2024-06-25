@@ -282,3 +282,57 @@ paths:
                     message: "Internal server error"
                     code: 500
                     details: "An unexpected error occurred while processing the request."
+
+  /orders/cancel/{orderId}:
+    put:
+      summary: Cancel order by order ID.
+      operationId: cancelOrder
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              examples:
+                success:
+                  summary: A successful response
+                  value:
+                    message: "Order cancelled successfully"
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badRequest:
+                  summary: Bad Request Example
+                  value:
+                    message: "Invalid order ID"
+                    code: 400
+                    details: "Order ID provided is not valid."
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Internal Server Error Example
+                  value:
+                    message: "Internal server error"
+                    code: 500
+                    details: "An unexpected error occurred while processing the request."
